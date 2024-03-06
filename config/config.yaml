@@ -1,0 +1,28 @@
+web:
+  hostname: "localhost"
+  port: 8000
+
+orchestrator:
+  hostname: "localhost"
+  port: 8001
+
+app:
+  name: "replc"
+  environment: "local"
+
+database:
+  hostname: "localhost"
+  port: 5432
+  user: "admin"
+  password: "admin"
+  database: "replc"
+
+s3:
+  accesskey: "AKIA2T7POMFAFPSJSNGU"
+  secretkey: "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"
+  region: "ap-south-1"
+
+k8s:
+  namespace: "default"
+  kubeconfigpath: "/mnt/c/Users/Suraj S/.kube/config"
+  serviceyamlpath: "../orchestrator/service.yaml"

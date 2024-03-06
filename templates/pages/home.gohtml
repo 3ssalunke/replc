@@ -1,0 +1,25 @@
+{{define "content"}}
+    <script>
+        const SLUG_WORKS = ["car", "dog", "computer", "person", "inside", "word", "for", "please", "to", "cool", "open", "source"];
+        function getRandomSlug() {
+            let slug = "";
+            for (let i = 0; i < 3; i++) {
+                slug += SLUG_WORKS[Math.floor(Math.random() * SLUG_WORKS.length)];
+            }
+            return slug;
+        }
+        function setReplId(){
+            const replId = getRandomSlug()
+            document.getElementById("replId").value = getRandomSlug()
+        }
+    </script>
+
+    <form id="form-a" hx-post="/project" hx-ext="json-enc">
+        <input id="replId" name="replId" value="" type="hidden"/>
+        <select id="language" name="language">
+            <option value="nodejs">Node.js</option>
+            <option value="python">Python</option>
+        </select>
+        <button type="submit" onclick="setReplId()">create replc</button>
+    </form>
+{{end}}
