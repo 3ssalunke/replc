@@ -15,7 +15,7 @@
     </script>
 
     <div class="h-screen flex items-center justify-center">
-        <form id="form-a" hx-post="/project" hx-ext="json-enc" class="bg-white shadow-md rounded px-8 pt-6 pb-8">
+        <form id="form-a" hx-post="/project" hx-ext="json-enc" hx-headers='{"HX-Boosted": "true"}' class="bg-white shadow-md rounded px-8 pt-6 pb-8">
             <input id="replId" name="replId" value="" type="hidden"/>
             <div class="mb-4">
                 <select id="language" name="language" class="block w-full px-4 py-2 border rounded focus:outline-none focus:border-blue-500">

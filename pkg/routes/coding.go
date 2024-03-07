@@ -16,11 +16,9 @@ type (
 )
 
 func (c *coding) Get(ctx echo.Context) error {
-	// namespace := "default"
-	// userId := "user123"
-	replId := ctx.QueryParam("replcid")
+	replId := ctx.Param("replcid")
 
-	k8s, err := controller.NewK8S(c.Container.Config.K8S.Kubeconfigpath)
+	_, err := controller.NewK8S(c.Container.Config.K8S.Kubeconfigpath)
 	if err != nil {
 		return c.Fail(err, "failed to load kube configs")
 	}

@@ -44,7 +44,6 @@ func BuildRouter(c *services.Container) {
 
 	pageRoutes(g, ctr)
 	apiRoutes(g, ctr)
-	// orchestratorRoutes(g, ctr)
 }
 
 func pageRoutes(g *echo.Group, ctr controller.Controller) {
@@ -52,13 +51,10 @@ func pageRoutes(g *echo.Group, ctr controller.Controller) {
 	g.GET("/", home.Get).Name = routePageHome
 
 	coding := coding{Controller: ctr}
-	g.GET("/coding", coding.Get).Name = routerPageCoding
+	g.GET("/coding/:replcid", coding.Get).Name = routerPageCoding
 }
 
 func apiRoutes(g *echo.Group, ctr controller.Controller) {
 	project := project{Controller: ctr}
 	g.POST("/project", project.Post).Name = routerApiProject
 }
-
-// func orchestratorRoutes(g *echo.Group, ctr controller.Controller) {
-// }

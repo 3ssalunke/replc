@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/3ssalunke/replc/pkg/controller"
@@ -40,8 +39,6 @@ func (c *project) Post(ctx echo.Context) error {
 	if err != nil {
 		return ctx.JSON(http.StatusInternalServerError, &projectResponse{Error: "Failed to spawn up a new replc"})
 	}
-	// return c.Redirect(ctx, "coding", fmt.Sprintf("?replcid=%s", payload.ReplId))
-	url := fmt.Sprintf("/coding?replcid=%s", payload.ReplId)
-	ctx.Response().Header().Set("HX-Redirect", url)
-	return ctx.Redirect(http.StatusSeeOther, url)
+
+	return c.Redirect(ctx, "coding", payload.ReplId)
 }

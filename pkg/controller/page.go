@@ -3,12 +3,10 @@ package controller
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/3ssalunke/replc/pkg/htmx"
 	"github.com/3ssalunke/replc/templates"
-	echomw "github.com/labstack/echo/v4/middleware"
 
 	"github.com/labstack/echo/v4"
 )
@@ -108,10 +106,6 @@ func NewPage(ctx echo.Context) Page {
 
 	p.IsHome = p.Path == "/"
 
-	if csrf := ctx.Get(echomw.DefaultCSRFConfig.ContextKey); csrf != nil {
-		p.CSRF = csrf.(string)
-	}
-
 	p.HTMX.Request = htmx.GetRequest(ctx)
 
 	return p
@@ -183,9 +177,7 @@ func (c *Controller) RenderPage(ctx echo.Context, page Page) error {
 
 // Redirect redirects to a given route name with optional route parameters
 func (c *Controller) Redirect(ctx echo.Context, route string, routeParams ...any) error {
-	url := ctx.Echo().Reverse(route, "abc?def")
-
-	log.Println(route, routeParams, url)
+	url := ctx.Echo().Reverse(route, routeParams...)
 	if htmx.GetRequest(ctx).Boosted {
 		htmx.Response{
 			Redirect: url,
