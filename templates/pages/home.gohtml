@@ -1,18 +1,5 @@
 {{define "content"}}
-    <script>
-        const SLUG_WORKS = ["car", "dog", "computer", "person", "inside", "word", "for", "please", "to", "cool", "open", "source"];
-        function getRandomSlug() {
-            let slug = "";
-            for (let i = 0; i < 3; i++) {
-                slug += SLUG_WORKS[Math.floor(Math.random() * SLUG_WORKS.length)];
-            }
-            return slug;
-        }
-        function setReplId(){
-            const replId = getRandomSlug()
-            document.getElementById("replId").value = getRandomSlug()
-        }
-    </script>
+    {{template "homejsscript" .}}
 
     <div class="h-screen flex items-center justify-center">
         <form id="form-a" hx-post="/project" hx-ext="json-enc" hx-headers='{"HX-Boosted": "true"}' class="bg-white shadow-md rounded px-8 pt-6 pb-8">

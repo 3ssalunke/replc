@@ -18,7 +18,7 @@ type (
 func (c *coding) Get(ctx echo.Context) error {
 	replId := ctx.Param("replcid")
 
-	_, err := controller.NewK8S(c.Container.Config.K8S.Kubeconfigpath)
+	k8s, err := controller.NewK8S(c.Container.Config.K8S.Kubeconfigpath)
 	if err != nil {
 		return c.Fail(err, "failed to load kube configs")
 	}
@@ -40,6 +40,9 @@ func (c *coding) Get(ctx echo.Context) error {
 	page.Layout = templates.LayoutMain
 	page.Name = templates.PageCoding
 	page.Metatags.Description = "Welcome to the replc."
+	page.Data = struct{ ReplId string }{
+		ReplId: replId,
+	}
 
 	return c.RenderPage(ctx, page)
 }

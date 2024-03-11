@@ -1,0 +1,13 @@
+{{define "codingjsscript"}}
+    <script>
+        let loaded = false;
+        let fileStructure = []
+        const newSocket = io('ws://{{.Data.ReplId}}.replc.com');
+
+        newSocket.on("loaded", ({rootContent}) => {
+            loaded = true;
+            console.log("fileStructure", rootContent)
+            fileStructure = rootContent
+        })
+    </script>
+{{end}}

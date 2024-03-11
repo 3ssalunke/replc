@@ -152,7 +152,7 @@ func (c *Controller) RenderPage(ctx echo.Context, page Page) error {
 			fmt.Sprintf("layouts/%s", page.Layout),
 			fmt.Sprintf("pages/%s", page.Name),
 		).
-		Directories("components").
+		Directories("components", "scripts").
 		Execute(page)
 
 	if err != nil {

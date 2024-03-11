@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     {{- if .Metatags.Description}}
-        <meta name="description" content="{{.Metatags.Description}}">
+    <meta name="description" content="{{.Metatags.Description}}">
     {{- end}}
     {{- if .Metatags.Keywords}}
         <meta name="keywords" content="{{.Metatags.Keywords | join ", "}}">
@@ -16,7 +16,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
 {{end}}
 
-{{define "js"}}
+{{define "htmxjs"}}
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
+{{end}}
+
+{{define "websocketjs"}}
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
 {{end}}
