@@ -1,13 +1,117 @@
 {{define "codingjsscript"}}
     <script>
-        let loaded = false;
-        let fileStructure = []
-        const newSocket = io('ws://{{.Data.ReplId}}.replc.com');
+        // Util functions for building file tree
+        function buildFileTree(data) {
+            const dirs = data.filter(x => x.type === "dir");
+            const files = data.filter(x => x.type === "file");
+            const cache = new Map();
+  
+            let rootDir = {
+                id: "root",
+                name: "root",
+                parentId: undefined,
+                type: "DIRECTORY",
+                path: "",
+                depth: 0,
+                dirs: [],
+                files: []
+            };
+  
+            dirs.forEach((item) => {
+                let dir = {
+                    id: item.path,
+                    name: item.name,
+                    path: item.path,
+                    parentId: item.path.split("/").length === 2 ? "0" : dirs.find(x => x.path === item.path.split("/").slice(0, -1).join("/"))?.path,
+                    type: "DIRECTORY",
+                    depth: 0,
+                    dirs: [],
+                    files: []
+                };
+                cache.set(dir.id, dir);
+            });
+  
+            files.forEach((item) => {
+                let file = {
+                    id: item.path,
+                    name: item.name,
+                    path: item.path,
+                    parentId: item.path.split("/").length === 2 ? "0" : dirs.find(x => x.path === item.path.split("/").slice(0, -1).join("/"))?.path,
+                    type: "FILE",
+                    depth: 0
+                };
+                cache.set(file.id, file);
+            });
 
+            cache.forEach((value, key) => {
+                if (value.parentId === "0") {
+                    if (value.type === "DIRECTORY") rootDir.dirs.push(value);
+                    else rootDir.files.push(value);
+                } else {
+                    const parentDir = cache.get(value.parentId);
+                    if (value.type === "DIRECTORY") parentDir.dirs.push(value);
+                    else parentDir.files.push(value);
+                }
+            });
+
+            getDepth(rootDir, 0);
+
+            return rootDir;
+        }
+
+        function getDepth(rootDir, curDepth) {
+            rootDir.files.forEach((file) => {
+                file.depth = curDepth + 1;
+            });
+            rootDir.dirs.forEach((dir) => {
+                dir.depth = curDepth + 1;
+                getDepth(dir, curDepth + 1);
+            });
+        }
+
+        function fileLangauge(filename){
+            let language = filename.split('.').pop();
+
+            if (language === "js") language = "javascript";
+            else if (language === "ts") language = "typescript";
+            else if (language === "py") language = "python";
+
+            return language;
+        }
+
+        const newSocket = io('ws://{{.Data.ReplId}}.replc.com');
+        let rootDir;
+        let selectedFile;
+
+        // Listen to loaded event from ws server
         newSocket.on("loaded", ({rootContent}) => {
-            loaded = true;
-            console.log("fileStructure", rootContent)
-            fileStructure = rootContent
-        })
+            console.log("rootContent", rootContent)
+            // Set fileStructure
+            rootDir = buildFileTree(rootContent);
+            console.log("rootDir", rootDir)
+
+            // Fetch content for file
+            let i = rootDir.files.findIndex(file => file.name === "test.js")
+            newSocket.emit("fetchContent", { path: rootDir.files[i].path }, (data) => {
+                console.log("fileContent", data)
+                rootDir.files[i].content = data;
+                selectedFile = rootDir.files[i];
+            });
+
+            // Initialize Monaco Editor
+            require.config({paths: {'vs':'https://cdn.jsdelivr.net/npm/monaco-editor@latest/min/vs'} });
+            
+            require(['vs/editor/editor.main'], function() {
+                var editor = monaco.editor.create(document.getElementById('ide-editor'), {
+                    value: selectedFile.content,
+                    language: fileLangauge(selectedFile.name)
+                });
+                
+            });
+
+            // Toggle loader and ide views
+            document.getElementById('ide-loader').style.display = 'none';
+            document.getElementById('ide-screen').style.display = 'block';
+        });
     </script>
 {{end}}
