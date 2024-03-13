@@ -4,12 +4,12 @@
     {{template "codingjsscript" .}}
 
     <!-- Loader HTML -->
-    <div id="ide-loader" hx-trigger="load delay:500ms, swap" class="fixed top-0 left-0 w-full h-full flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
-        <div class="animate-spin rounded-full h-30 w-30 border-b-2 border-gray-100"></div>
+    <div id="ide-loader" class="fixed top-0 left-0 w-full h-full flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
+        <div class="animate-spin rounded-full h-20 w-20 border-b-2 border-gray-100"></div>
     </div>
 
     <!-- Your data HTML -->
-    <div id="ide-screen" hx-trigger="load delay:500ms, swap" class="bg-gray-100 h-screen hidden">
+    <div id="ide-screen" class="bg-gray-100 h-screen hidden">
         <div class="flex h-screen">
             <!-- Sidebar -->
             <div class="w-1/4 bg-gray-800 text-white">

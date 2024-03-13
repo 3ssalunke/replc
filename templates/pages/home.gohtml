@@ -11,10 +11,13 @@
                 </select>
             </div>
             <div class="mb-4">
-                <button type="submit" onclick="setReplId()" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button">
-                    Create Replc
+                <button id="fsb-text" type="submit" id="fsb" onclick="setReplId()" class="flex items-center justify-center bg-blue-500 hover:bg-blue-700 text-white font-bold min-w-40 py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button">
+                    <span>Create Replc</span>
+                </button>
+                <button id="fsb-loader" disabled id="fsb" onclick="setReplId()" class="hidden flex items-center justify-center bg-blue-500 hover:bg-blue-700 text-white font-bold min-w-40 py-3 px-4 rounded focus:outline-none focus:shadow-outline" type="button">
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-100"></div>
                 </button>
             </div>
         </form>
-        </div>
+    </div>
 {{end}}

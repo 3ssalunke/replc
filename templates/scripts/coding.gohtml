@@ -1,6 +1,6 @@
 {{define "codingjsscript"}}
     <script>
-        // Util functions for building file tree
+        // Util functions
         function buildFileTree(data) {
             const dirs = data.filter(x => x.type === "dir");
             const files = data.filter(x => x.type === "file");
@@ -79,6 +79,16 @@
             return language;
         }
 
+        function debounce(func, wait){
+            let timeout;
+            return () => {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    func()
+                }, wait)
+            }
+        }
+
         const newSocket = io('ws://{{.Data.ReplId}}.replc.com');
         let rootDir;
         let selectedFile;
@@ -107,6 +117,10 @@
                     language: fileLangauge(selectedFile.name)
                 });
                 
+                editor.onDidChangeModelContent(debounce(() => {
+                    console.log('Editor content changed:', editor.getValue());
+                    newSocket.emit("updateContent", { path: selectedFile.path, content: editor.getValue() });
+                }, 1000));
             });
 
             // Toggle loader and ide views
