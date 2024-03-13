@@ -89,6 +89,7 @@
             }
         }
 
+        // Socket communication
         const newSocket = io('ws://{{.Data.ReplId}}.replc.com');
         let rootDir;
         let selectedFile;
@@ -99,6 +100,62 @@
             // Set fileStructure
             rootDir = buildFileTree(rootContent);
             console.log("rootDir", rootDir)
+
+            // Create file explorer
+            rootDir.files.forEach(file => {
+                const listItem = document.createElement('li');
+                listItem.classList.add('p-1', 'hover:cursor-pointer', 'hover:bg-gray-600');
+
+                // Add icon
+                const icon = document.createElement('i');
+                icon.classList.add('far', 'fa-file', 'mx-2');
+
+                listItem.appendChild(icon);
+
+                const fileName = document.createTextNode(file.name);
+                listItem.appendChild(fileName);
+
+                listItem.onclick = function() {
+                    // Remove background color from previously selected item
+                    const prevSelectedItem = document.querySelector('.selected');
+                    if (prevSelectedItem) {
+                        prevSelectedItem.classList.remove('selected', 'bg-blue-500');
+                    }
+
+                    // Add background color to the clicked item
+                    listItem.classList.add('selected', 'bg-blue-500');
+                };
+
+                document.getElementById('fileExplorer').appendChild(listItem);
+            });
+            rootDir.dirs.forEach(dir => {
+                const listItem = document.createElement('li');
+                listItem.classList.add('p-1', 'hover:cursor-pointer', 'hover:bg-gray-600');
+
+                // Add icon
+                const icon = document.createElement('i');
+                icon.classList.add('fas', 'fa-folder', 'mx-2');
+                // Add expand/shrink icon for folders
+                icon.classList.add('folder-icon');
+
+                listItem.appendChild(icon);
+
+                const folderName = document.createTextNode(dir.name);
+                listItem.appendChild(folderName);
+
+                listItem.onclick = function() {
+                    // Remove background color from previously selected item
+                    const prevSelectedItem = document.querySelector('.selected');
+                    if (prevSelectedItem) {
+                        prevSelectedItem.classList.remove('selected', 'bg-blue-500');
+                    }
+
+                    // Add background color to the clicked item
+                    listItem.classList.add('selected', 'bg-blue-500');
+                };
+
+                document.getElementById('fileExplorer').appendChild(listItem);
+            });
 
             // Fetch content for file
             let i = rootDir.files.findIndex(file => file.name === "test.js")
@@ -118,7 +175,7 @@
                 });
                 
                 editor.onDidChangeModelContent(debounce(() => {
-                    console.log('Editor content changed:', editor.getValue());
+                    console.log('Editor content changed:', selectedFile.path, editor.getValue());
                     newSocket.emit("updateContent", { path: selectedFile.path, content: editor.getValue() });
                 }, 1000));
             });

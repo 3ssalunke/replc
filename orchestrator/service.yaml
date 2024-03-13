@@ -39,6 +39,13 @@ spec:
           ports:
             - containerPort: 3001
             - containerPort: 3000
+          env:
+            - name: S3_BUCKET
+              value: "replc"
+            - name: AWS_ACCESS_KEY_ID
+              value: "AKIA2T7POMFAFPSJSNGU"
+            - name: AWS_SECRET_ACCESS_KEY
+              value: "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"
           volumeMounts:
             - name: replcvol
               mountPath: /workspace

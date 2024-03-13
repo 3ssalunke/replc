@@ -1,6 +1,7 @@
 {{define "content"}}
     {{template "websocketjs" .}}
     {{template "monacoeditor" .}}
+    {{template "fontawesome" .}}
     {{template "codingjsscript" .}}
 
     <!-- Loader HTML -->
@@ -9,24 +10,25 @@
     </div>
 
     <!-- Your data HTML -->
-    <div id="ide-screen" class="bg-gray-100 h-screen hidden">
-        <div class="flex h-screen">
+    <div id="ide-screen" class="bg-gray-100 h-dvh hidden">
+        <div class="flex h-dvh">
             <!-- Sidebar -->
-            <div class="w-1/4 bg-gray-800 text-white">
+            <div class="w-1/5 bg-gray-800 text-white">
                 <!-- File explorer -->
-                <div class="p-4">
-                    <h2 class="text-lg font-semibold mb-4">File Explorer</h2>
+                <div class="px-4 py-1">
+                    <h2 class="text-lg font-semibold mb-1">File Explorer</h2>
                     <!-- List of files -->
-                    <ul>
-                        <li class="mb-2">File 1</li>
-                        <li class="mb-2">File 2</li>
-                        <li class="mb-2">File 3</li>
-                        <!-- Add more files as needed -->
-                    </ul>
+                    <ul id="fileExplorer"></ul>
                 </div>
             </div>
             <!-- Editor -->
-            <div id="ide-editor" class="flex-1 flex flex-col" style="width: 400px; height: 100vh;"></div>
+            <div id="ide-editor" class="flex-1 flex flex-col" style="height:95%"></div>
+            <!-- Terminal -->
+            <div class="w-1/5 bg-black text-white">
+                <div class="px-4 py-1">
+                    <h2 class="text-lg font-semibold mb-1">Terminal</h2>
+                </div>
+            </div>
         </div>
         <!-- Status bar -->
         <div class="bg-gray-700 text-white p-4">
