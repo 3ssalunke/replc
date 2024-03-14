@@ -1,15 +1,5 @@
 {{define "homejsscript"}}
     <script>
-        const SLUG_WORKS = ["car", "dog", "computer", "person", "inside", "word", "for", "please", "to", "cool", "open", "source"];
-
-        function getRandomSlug() {
-            let slug = "";
-            for (let i = 0; i < 3; i++) {
-                slug += SLUG_WORKS[Math.floor(Math.random() * SLUG_WORKS.length)];
-            }
-            return slug;
-        }
-        
         function setReplId(){
             const replId = getRandomSlug()
             document.getElementById("replId").value = getRandomSlug();

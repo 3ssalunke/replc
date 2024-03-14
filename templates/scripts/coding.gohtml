@@ -1,6 +1,6 @@
 {{define "codingjsscript"}}
     <script>
-        // Util functions
+        // ------------- Start util functions --------------
         function buildFileTree(data) {
             const dirs = data.filter(x => x.type === "dir");
             const files = data.filter(x => x.type === "file");
@@ -34,6 +34,7 @@
             files.forEach((item) => {
                 let file = {
                     id: item.path,
+                    class: getRandomSlug(),
                     name: item.name,
                     path: item.path,
                     parentId: item.path.split("/").length === 2 ? "0" : dirs.find(x => x.path === item.path.split("/").slice(0, -1).join("/"))?.path,
@@ -89,33 +90,25 @@
             }
         }
 
-        // Socket communication
-        const newSocket = io('ws://{{.Data.ReplId}}.replc.com');
-        let rootDir;
-        let selectedFile;
+        function createFileTree(rootDir, rootEle){
+            // Iterate rootDir files and create li element for each file
+            rootDir.files.forEach((file, index) => {
+                // Create li element in file explorer ul
+                const feListItem = document.createElement('li');
+                document.getElementById(rootEle).appendChild(feListItem);
+                feListItem.classList.add('p-1', 'hover:cursor-pointer', 'hover:bg-gray-600');
 
-        // Listen to loaded event from ws server
-        newSocket.on("loaded", ({rootContent}) => {
-            console.log("rootContent", rootContent)
-            // Set fileStructure
-            rootDir = buildFileTree(rootContent);
-            console.log("rootDir", rootDir)
-
-            // Create file explorer
-            rootDir.files.forEach(file => {
-                const listItem = document.createElement('li');
-                listItem.classList.add('p-1', 'hover:cursor-pointer', 'hover:bg-gray-600');
-
-                // Add icon
+                // Add file icon
                 const icon = document.createElement('i');
                 icon.classList.add('far', 'fa-file', 'mx-2');
+                feListItem.appendChild(icon);
 
-                listItem.appendChild(icon);
-
+                // Add file name
                 const fileName = document.createTextNode(file.name);
-                listItem.appendChild(fileName);
+                feListItem.appendChild(fileName);
 
-                listItem.onclick = function() {
+                // Attach onclick event to li element
+                feListItem.onclick = function() {
                     // Remove background color from previously selected item
                     const prevSelectedItem = document.querySelector('.selected');
                     if (prevSelectedItem) {
@@ -123,14 +116,59 @@
                     }
 
                     // Add background color to the clicked item
-                    listItem.classList.add('selected', 'bg-blue-500');
-                };
+                    this.classList.add('selected', 'bg-blue-500');
 
-                document.getElementById('fileExplorer').appendChild(listItem);
+                    // Check if this file is opened before
+                    const prevOpenedFile = document.querySelector(`.${file.class}`)
+                    console.log("prevOpenedFile", file.class, prevOpenedFile)
+                    if(!prevOpenedFile){
+                        // Create li element in opened file ul
+                        const vfListItem = document.createElement('li');
+                        document.getElementById("visited-files").appendChild(vfListItem);
+                        vfListItem.classList.add('p-1', 'hover:cursor-pointer', file.class);
+
+                        // Add file name
+                        const fileName = document.createTextNode(file.name);
+                        vfListItem.appendChild(fileName);
+
+                        // Add close icon
+                        const icon = document.createElement('i');
+                        icon.classList.add('fa', 'fa-times', 'mx-2');
+                        vfListItem.appendChild(icon);
+                    }
+
+                    // Fetch content for file
+                    newSocket.emit("fetchContent", { path: file.path }, (data) => {
+                        rootDir.files[index].content = data;
+
+                        // Create editor element in editor tabs section
+                        const prevOpenedEditorTab = document.querySelector('.open-editor');
+                        if (prevOpenedEditorTab) {
+                            prevOpenedEditorTab.remove();
+                        }
+                        const editorTab = document.createElement('div');
+                        editorTab.classList.add('open-editor');
+                        editorTab.style = "width:100%; height:95%"
+                        document.getElementById("ide-editor-tabs").appendChild(editorTab);
+
+                        require(['vs/editor/editor.main'], function() {
+                            const editor = monaco.editor.create(editorTab, {
+                                value: data,
+                                language: fileLangauge(file.name)
+                            });
+
+                            editor.onDidChangeModelContent(debounce(() => {
+                                newSocket.emit("updateContent", { path: file.path, content: editor.getValue() });
+                            }, 1000));
+                        });
+                    });
+                };
             });
+            // Iterate rootDir dirs and create li element for each dir
             rootDir.dirs.forEach(dir => {
-                const listItem = document.createElement('li');
-                listItem.classList.add('p-1', 'hover:cursor-pointer', 'hover:bg-gray-600');
+                const feListItem = document.createElement('li');
+                document.getElementById(rootEle).appendChild(feListItem);
+                feListItem.classList.add('p-1', 'hover:cursor-pointer', 'hover:bg-gray-600');
 
                 // Add icon
                 const icon = document.createElement('i');
@@ -138,12 +176,12 @@
                 // Add expand/shrink icon for folders
                 icon.classList.add('folder-icon');
 
-                listItem.appendChild(icon);
+                feListItem.appendChild(icon);
 
                 const folderName = document.createTextNode(dir.name);
-                listItem.appendChild(folderName);
+                feListItem.appendChild(folderName);
 
-                listItem.onclick = function() {
+                feListItem.onclick = function() {
                     // Remove background color from previously selected item
                     const prevSelectedItem = document.querySelector('.selected');
                     if (prevSelectedItem) {
@@ -151,34 +189,26 @@
                     }
 
                     // Add background color to the clicked item
-                    listItem.classList.add('selected', 'bg-blue-500');
+                    this.classList.add('selected', 'bg-blue-500');
                 };
-
-                document.getElementById('fileExplorer').appendChild(listItem);
             });
+        }
+        // ------------- End util functions --------------
 
-            // Fetch content for file
-            let i = rootDir.files.findIndex(file => file.name === "test.js")
-            newSocket.emit("fetchContent", { path: rootDir.files[i].path }, (data) => {
-                console.log("fileContent", data)
-                rootDir.files[i].content = data;
-                selectedFile = rootDir.files[i];
-            });
+        // Socket communication
+        const newSocket = io('ws://{{.Data.ReplId}}.replc.com');
 
-            // Initialize Monaco Editor
-            require.config({paths: {'vs':'https://cdn.jsdelivr.net/npm/monaco-editor@latest/min/vs'} });
-            
-            require(['vs/editor/editor.main'], function() {
-                var editor = monaco.editor.create(document.getElementById('ide-editor'), {
-                    value: selectedFile.content,
-                    language: fileLangauge(selectedFile.name)
-                });
-                
-                editor.onDidChangeModelContent(debounce(() => {
-                    console.log('Editor content changed:', selectedFile.path, editor.getValue());
-                    newSocket.emit("updateContent", { path: selectedFile.path, content: editor.getValue() });
-                }, 1000));
-            });
+        // Initialize Monaco Editor
+        require.config({paths: {'vs':'https://cdn.jsdelivr.net/npm/monaco-editor@latest/min/vs'} });
+
+        // Listen to loaded event from ws server
+        newSocket.on("loaded", ({rootContent}) => {
+            // Create root dir
+            rootDir = buildFileTree(rootContent);
+            console.log("rootDir", rootDir)
+
+            // Create file explorer
+            createFileTree(rootDir, "file-explorer")
 
             // Toggle loader and ide views
             document.getElementById('ide-loader').style.display = 'none';
