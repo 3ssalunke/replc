@@ -31,9 +31,15 @@ func (c *coding) Get(ctx echo.Context) error {
 
 	orchestratorYamlPath := filepath.Join(dir, "../orchestrator/service.yaml")
 
-	err = c.Controller.CreateK8sResources(k8s, orchestratorYamlPath, replId)
+	areResourcesExists, err := c.Controller.AreResourcesExists(k8s, replId)
 	if err != nil {
-		return c.Fail(err, "failed to load kube configs")
+		return c.Fail(err, "failed to check resources status")
+	}
+	if !areResourcesExists {
+		err := c.Controller.CreateK8sResources(k8s, orchestratorYamlPath, replId)
+		if err != nil {
+			return c.Fail(err, "failed to load kube configs")
+		}
 	}
 
 	page := controller.NewPage(ctx)

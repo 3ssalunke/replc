@@ -228,47 +228,36 @@
         function terminalHandler(term) {
             return ({data}) => {
                 if (data instanceof ArrayBuffer) {
-                console.error(data);
-                console.log(ab2str(data));
-                term.write(ab2str(data));
-            }
+                    term.write(ab2str(data));
+                }
             }
         }
 
         function createTerminal(socket){
             const term = new Terminal({
-                cursorBlink: true
+                cursorBlink: true,
+                cols: 30,
+                useStyle: true,
+                screenKeys: true,
             });
+
+            // Load fit addon
+            const fitAddon = new FitAddon.FitAddon();
+            term.loadAddon(fitAddon);
 
             // Attach the terminal to the DOM
             term.open(document.getElementById('terminal-container'));
-            document.getElementById('terminal-container').style.width = '800px'; // Set width
-            document.getElementById('terminal-container').style.height = '600px'; // Set height
-
-            // Handle resize event
-            window.addEventListener('resize', () => {
-                term.fit();
-            });
+            fitAddon.fit();
 
             // Request terminal
             socket.emit("requestTerminal");
-            socket.on("terminal", terminalHandler);
+            socket.on("terminal", terminalHandler(term));
 
             // Handle user input
-            term.onKey((e) => {
-                const printable = !e.altKey && !e.ctrlKey && !e.metaKey;
-                if (e.keyCode === 13) {
-                    // Enter key pressed
-                    term.prompt();
-                } else if (e.keyCode === 8) {
-                    // Backspace key pressed
-                    if (term.x > 2) {
-                        term.write('\b \b');
-                    }
-                } else if (printable) {
-                    // Regular printable characters
-                    term.write(e.key);
-                }
+           term.onData((data) => {
+                socket.emit('terminalData', {
+                    data
+                });
             });
         }
         // ------------- End util functions --------------

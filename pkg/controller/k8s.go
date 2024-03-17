@@ -71,6 +71,124 @@ func readAndParseKubeYaml(filePath string, replId string) ([]map[string]interfac
 	return parsedDocs, nil
 }
 
+func (c *Controller) AreResourcesExists(k8s *K8S, replId string) (bool, error) {
+	var (
+		isDeploymentMissing = false
+		isServiceMissing    = false
+		isIngressMissing    = false
+	)
+	// List deployments
+	deployments, err := k8s.Clientset.AppsV1().Deployments(c.Container.Config.K8S.Namespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		log.Printf("failed to list deployments: %s", err.Error())
+		return false, fmt.Errorf("failed to list deployments: %s", err.Error())
+	}
+	for _, deployment := range deployments.Items {
+		if deployment.Name != replId {
+			isDeploymentMissing = true
+		} else {
+			isDeploymentMissing = false
+			break
+		}
+	}
+
+	// List services
+	services, err := k8s.Clientset.CoreV1().Services(c.Container.Config.K8S.Namespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		log.Printf("failed to list services: %s\n", err.Error())
+		return false, fmt.Errorf("failed to list services: %s", err.Error())
+	}
+	for _, service := range services.Items {
+		if service.Name != replId {
+			isServiceMissing = true
+		} else {
+			isServiceMissing = false
+			break
+		}
+	}
+
+	// List ingresses
+	ingresses, err := k8s.Clientset.NetworkingV1().Ingresses(c.Container.Config.K8S.Namespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		log.Printf("failed to list ingresses: %s", err.Error())
+		return false, fmt.Errorf("failed to list ingresses: %s", err.Error())
+	}
+	for _, ingress := range ingresses.Items {
+		if ingress.Name != replId {
+			isIngressMissing = true
+		} else {
+			isIngressMissing = false
+			break
+		}
+	}
+
+	// Early return
+	if !isDeploymentMissing && !isServiceMissing && !isIngressMissing {
+		return true, nil
+	}
+
+	// Delete remaining resource if one of the resource is missing
+	if isDeploymentMissing {
+		if !isServiceMissing {
+			// Delete service
+			err := k8s.Clientset.CoreV1().Services(c.Container.Config.K8S.Namespace).Delete(context.TODO(), replId, metav1.DeleteOptions{})
+			if err != nil {
+				log.Printf("failed to delete service: %s\n", err.Error())
+				return false, fmt.Errorf("failed to delete service: %s", err.Error())
+			}
+		}
+		if !isIngressMissing {
+			// Delete ingress
+			err = k8s.Clientset.NetworkingV1().Ingresses(c.Container.Config.K8S.Namespace).Delete(context.TODO(), replId, metav1.DeleteOptions{})
+			if err != nil {
+				log.Printf("failed to delete ingress: %s\n", err.Error())
+				return false, fmt.Errorf("failed to delete ingress: %s", err.Error())
+			}
+		}
+		return false, nil
+	}
+	if isServiceMissing {
+		if !isDeploymentMissing {
+			// Delete deployment
+			err := k8s.Clientset.AppsV1().Deployments(c.Container.Config.K8S.Namespace).Delete(context.TODO(), replId, metav1.DeleteOptions{})
+			if err != nil {
+				log.Printf("failed to delete deployment: %s\n", err.Error())
+				return false, fmt.Errorf("failed to delete deployment: %s", err.Error())
+			}
+		}
+		if !isIngressMissing {
+			// Delete ingress
+			err = k8s.Clientset.NetworkingV1().Ingresses(c.Container.Config.K8S.Namespace).Delete(context.TODO(), replId, metav1.DeleteOptions{})
+			if err != nil {
+				log.Printf("failed to delete ingress: %s\n", err.Error())
+				return false, fmt.Errorf("failed to delete ingress: %s", err.Error())
+			}
+		}
+		return false, nil
+	}
+	if isDeploymentMissing {
+		if !isDeploymentMissing {
+			// Delete deployment
+			err := k8s.Clientset.AppsV1().Deployments(c.Container.Config.K8S.Namespace).Delete(context.TODO(), replId, metav1.DeleteOptions{})
+			if err != nil {
+				log.Printf("failed to delete deployment: %s\n", err.Error())
+				return false, fmt.Errorf("failed to delete deployment: %s", err.Error())
+			}
+		}
+		if !isServiceMissing {
+			// Delete service
+			err := k8s.Clientset.CoreV1().Services(c.Container.Config.K8S.Namespace).Delete(context.TODO(), replId, metav1.DeleteOptions{})
+			if err != nil {
+				log.Printf("failed to delete service: %s\n", err.Error())
+				return false, fmt.Errorf("failed to delete service: %s", err.Error())
+			}
+		}
+		return false, nil
+	}
+
+	return false, nil
+}
+
 func (c *Controller) CreateK8sResources(k8s *K8S, filePath string, replId string) error {
 	// Read and parse Kubernetes YAML manifests
 	kubeManifests, err := readAndParseKubeYaml(filePath, replId)
