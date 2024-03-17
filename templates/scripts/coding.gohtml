@@ -90,6 +90,33 @@
             }
         }
 
+        function fetchFileContentAndCreateEditor(rootDir, file, index){
+            newSocket.emit("fetchContent", { path: file.path }, (data) => {
+                rootDir.files[index].content = data;
+
+                // Create editor element in editor tabs section
+                const prevOpenedEditorTab = document.querySelector('.open-editor');
+                if (prevOpenedEditorTab) {
+                    prevOpenedEditorTab.remove();
+                }
+                const editorTab = document.createElement('div');
+                editorTab.classList.add('open-editor');
+                editorTab.style = "width:100%; height:95%"
+                document.getElementById("ide-editor-tabs").appendChild(editorTab);
+
+                require(['vs/editor/editor.main'], function() {
+                    const editor = monaco.editor.create(editorTab, {
+                        value: data,
+                        language: fileLangauge(file.name)
+                    });
+
+                    editor.onDidChangeModelContent(debounce(() => {
+                        newSocket.emit("updateContent", { path: file.path, content: editor.getValue() });
+                    }, 1000));
+                });
+            });
+        }
+
         function createFileTree(rootDir, rootEle){
             // Iterate rootDir files and create li element for each file
             rootDir.files.forEach((file, index) => {
@@ -120,12 +147,24 @@
 
                     // Check if this file is opened before
                     const prevOpenedFile = document.querySelector(`.${file.class}`)
-                    console.log("prevOpenedFile", file.class, prevOpenedFile)
                     if(!prevOpenedFile){
                         // Create li element in opened file ul
+                        const prevOpenedFileTab = document.querySelector('.opened-tab');
+                        if (prevOpenedFileTab) {
+                            prevOpenedFileTab.classList.remove('opened-tab', 'bg-blue-200');
+                        }
                         const vfListItem = document.createElement('li');
                         document.getElementById("visited-files").appendChild(vfListItem);
-                        vfListItem.classList.add('p-1', 'hover:cursor-pointer', file.class);
+                        vfListItem.classList.add('p-1', 'border-r-2', 'hover:cursor-pointer', 'opened-tab', 'bg-blue-200', file.class);
+                        vfListItem.onclick = function(){
+                            // Fetch content for file and create editor instance
+                            fetchFileContentAndCreateEditor(rootDir, file, index)
+                            const prevOpenedFileTab = document.querySelector('.opened-tab');
+                            if (prevOpenedFileTab) {
+                                prevOpenedFileTab.classList.remove('opened-tab', 'bg-blue-200');
+                            }
+                            this.classList.add('opened-tab', 'bg-blue-200')
+                        }
 
                         // Add file name
                         const fileName = document.createTextNode(file.name);
@@ -137,31 +176,8 @@
                         vfListItem.appendChild(icon);
                     }
 
-                    // Fetch content for file
-                    newSocket.emit("fetchContent", { path: file.path }, (data) => {
-                        rootDir.files[index].content = data;
-
-                        // Create editor element in editor tabs section
-                        const prevOpenedEditorTab = document.querySelector('.open-editor');
-                        if (prevOpenedEditorTab) {
-                            prevOpenedEditorTab.remove();
-                        }
-                        const editorTab = document.createElement('div');
-                        editorTab.classList.add('open-editor');
-                        editorTab.style = "width:100%; height:95%"
-                        document.getElementById("ide-editor-tabs").appendChild(editorTab);
-
-                        require(['vs/editor/editor.main'], function() {
-                            const editor = monaco.editor.create(editorTab, {
-                                value: data,
-                                language: fileLangauge(file.name)
-                            });
-
-                            editor.onDidChangeModelContent(debounce(() => {
-                                newSocket.emit("updateContent", { path: file.path, content: editor.getValue() });
-                            }, 1000));
-                        });
-                    });
+                    // Fetch content for file and create editor instance
+                    fetchFileContentAndCreateEditor(rootDir, file, index)
                 };
             });
             // Iterate rootDir dirs and create li element for each dir
@@ -193,6 +209,57 @@
                 };
             });
         }
+
+        function ab2str(buf) {
+            return String.fromCharCode.apply(null, new Uint8Array(buf));
+        }
+
+        function terminalHandler(term) {
+            return ({data}) => {
+                if (data instanceof ArrayBuffer) {
+                console.error(data);
+                console.log(ab2str(data))
+                term.write(ab2str(data))
+            }
+            }
+        }
+
+        function createTerminal(socket){
+            const term = new Terminal({
+                cursorBlink: true
+            });
+
+            // Attach the terminal to the DOM
+            term.open(document.getElementById('terminal-container'));
+            document.getElementById('terminal-container').style.width = '800px'; // Set width
+            document.getElementById('terminal-container').style.height = '600px'; // Set height
+
+            // Handle resize event
+            window.addEventListener('resize', () => {
+                term.fit();
+            });
+
+            // Request terminal
+            socket.emit("requestTerminal");
+            socket.on("terminal", terminalHandler)
+
+            // Handle user input
+            term.onKey((e) => {
+                const printable = !e.altKey && !e.ctrlKey && !e.metaKey;
+                if (e.keyCode === 13) {
+                    // Enter key pressed
+                    term.prompt();
+                } else if (e.keyCode === 8) {
+                    // Backspace key pressed
+                    if (term.x > 2) {
+                        term.write('\b \b');
+                    }
+                } else if (printable) {
+                    // Regular printable characters
+                    term.write(e.key);
+                }
+            });
+        }
         // ------------- End util functions --------------
 
         // Socket communication
@@ -208,7 +275,10 @@
             console.log("rootDir", rootDir)
 
             // Create file explorer
-            createFileTree(rootDir, "file-explorer")
+            createFileTree(rootDir, "file-explorer");
+
+            // Create terminal
+            createTerminal(newSocket);
 
             // Toggle loader and ide views
             document.getElementById('ide-loader').style.display = 'none';
