@@ -85,7 +85,7 @@
             return () => {
                 clearTimeout(timeout);
                 timeout = setTimeout(() => {
-                    func()
+                    func();
                 }, wait)
             }
         }
@@ -101,7 +101,7 @@
                 }
                 const editorTab = document.createElement('div');
                 editorTab.classList.add('open-editor');
-                editorTab.style = "width:100%; height:95%"
+                editorTab.style = "width:100%; height:95%";
                 document.getElementById("ide-editor-tabs").appendChild(editorTab);
 
                 require(['vs/editor/editor.main'], function() {
@@ -115,6 +115,19 @@
                     }, 1000));
                 });
             });
+        }
+
+        function removeExplorerAndTabSelectionStyles(){
+            // Remove select styles from previously selected item in file explorer
+            const prevSelectedItem = document.querySelector('.fe-selected');
+            if (prevSelectedItem) {
+                prevSelectedItem.classList.remove('fe-selected', 'bg-blue-500');
+            }
+            // Remove opened tab styles from previously opened file tab
+            const prevOpenedFileTab = document.querySelector('.opened-tab');
+            if (prevOpenedFileTab) {
+                prevOpenedFileTab.classList.remove('opened-tab', 'bg-blue-200');
+            }
         }
 
         function createFileTree(rootDir, rootEle){
@@ -134,36 +147,34 @@
                 const fileName = document.createTextNode(file.name);
                 feListItem.appendChild(fileName);
 
-                // Attach onclick event to li element
+                // Attach onclick event to file explorer li element
                 feListItem.onclick = function() {
-                    // Remove background color from previously selected item
-                    const prevSelectedItem = document.querySelector('.selected');
-                    if (prevSelectedItem) {
-                        prevSelectedItem.classList.remove('selected', 'bg-blue-500');
-                    }
+                    removeExplorerAndTabSelectionStyles();
 
-                    // Add background color to the clicked item
-                    this.classList.add('selected', 'bg-blue-500');
+                    // Add background color to the clicked explorer li item
+                    this.classList.add('fe-selected', 'bg-blue-500');
 
                     // Check if this file is opened before
-                    const prevOpenedFile = document.querySelector(`.${file.class}`)
-                    if(!prevOpenedFile){
-                        // Create li element in opened file ul
-                        const prevOpenedFileTab = document.querySelector('.opened-tab');
-                        if (prevOpenedFileTab) {
-                            prevOpenedFileTab.classList.remove('opened-tab', 'bg-blue-200');
-                        }
+                    const prevOpenedFile = document.querySelector(`.${file.class}`);
+                    if(prevOpenedFile){
+                        // Add background color to opened file tab li item
+                        prevOpenedFile.classList.add('opened-tab', 'bg-blue-200');
+                    } else {
+                        // Create li element in opened file tabs ul
                         const vfListItem = document.createElement('li');
                         document.getElementById("visited-files").appendChild(vfListItem);
                         vfListItem.classList.add('p-1', 'border-r-2', 'hover:cursor-pointer', 'opened-tab', 'bg-blue-200', file.class);
+
+                        // Attach onclick event to open file tab li item
                         vfListItem.onclick = function(){
                             // Fetch content for file and create editor instance
-                            fetchFileContentAndCreateEditor(rootDir, file, index)
-                            const prevOpenedFileTab = document.querySelector('.opened-tab');
-                            if (prevOpenedFileTab) {
-                                prevOpenedFileTab.classList.remove('opened-tab', 'bg-blue-200');
-                            }
-                            this.classList.add('opened-tab', 'bg-blue-200')
+                            fetchFileContentAndCreateEditor(rootDir, file, index);
+
+                            removeExplorerAndTabSelectionStyles();
+
+                            // Add selection styles to explorer and open tabs items
+                            feListItem.classList.add('fe-selected', 'bg-blue-500');
+                            this.classList.add('opened-tab', 'bg-blue-200');
                         }
 
                         // Add file name
@@ -177,7 +188,7 @@
                     }
 
                     // Fetch content for file and create editor instance
-                    fetchFileContentAndCreateEditor(rootDir, file, index)
+                    fetchFileContentAndCreateEditor(rootDir, file, index);
                 };
             });
             // Iterate rootDir dirs and create li element for each dir
@@ -218,8 +229,8 @@
             return ({data}) => {
                 if (data instanceof ArrayBuffer) {
                 console.error(data);
-                console.log(ab2str(data))
-                term.write(ab2str(data))
+                console.log(ab2str(data));
+                term.write(ab2str(data));
             }
             }
         }
@@ -241,7 +252,7 @@
 
             // Request terminal
             socket.emit("requestTerminal");
-            socket.on("terminal", terminalHandler)
+            socket.on("terminal", terminalHandler);
 
             // Handle user input
             term.onKey((e) => {
@@ -272,7 +283,7 @@
         newSocket.on("loaded", ({rootContent}) => {
             // Create root dir
             rootDir = buildFileTree(rootContent);
-            console.log("rootDir", rootDir)
+            console.log("rootDir", rootDir);
 
             // Create file explorer
             createFileTree(rootDir, "file-explorer");
