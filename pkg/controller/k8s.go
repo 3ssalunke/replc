@@ -73,9 +73,9 @@ func readAndParseKubeYaml(filePath string, replId string) ([]map[string]interfac
 
 func (c *Controller) AreResourcesExists(k8s *K8S, replId string) (bool, error) {
 	var (
-		isDeploymentMissing = false
-		isServiceMissing    = false
-		isIngressMissing    = false
+		isDeploymentMissing = true
+		isServiceMissing    = true
+		isIngressMissing    = true
 	)
 	// List deployments
 	deployments, err := k8s.Clientset.AppsV1().Deployments(c.Container.Config.K8S.Namespace).List(context.Background(), metav1.ListOptions{})
@@ -84,11 +84,8 @@ func (c *Controller) AreResourcesExists(k8s *K8S, replId string) (bool, error) {
 		return false, fmt.Errorf("failed to list deployments: %s", err.Error())
 	}
 	for _, deployment := range deployments.Items {
-		if deployment.Name != replId {
-			isDeploymentMissing = true
-		} else {
+		if deployment.Name == replId {
 			isDeploymentMissing = false
-			break
 		}
 	}
 
@@ -99,11 +96,8 @@ func (c *Controller) AreResourcesExists(k8s *K8S, replId string) (bool, error) {
 		return false, fmt.Errorf("failed to list services: %s", err.Error())
 	}
 	for _, service := range services.Items {
-		if service.Name != replId {
-			isServiceMissing = true
-		} else {
+		if service.Name == replId {
 			isServiceMissing = false
-			break
 		}
 	}
 
@@ -114,17 +108,14 @@ func (c *Controller) AreResourcesExists(k8s *K8S, replId string) (bool, error) {
 		return false, fmt.Errorf("failed to list ingresses: %s", err.Error())
 	}
 	for _, ingress := range ingresses.Items {
-		if ingress.Name != replId {
-			isIngressMissing = true
-		} else {
+		if ingress.Name == replId {
 			isIngressMissing = false
-			break
 		}
 	}
 
 	// Early return
-	if !isDeploymentMissing && !isServiceMissing && !isIngressMissing {
-		return true, nil
+	if isDeploymentMissing && isServiceMissing && isIngressMissing {
+		return false, nil
 	}
 
 	// Delete remaining resource if one of the resource is missing
@@ -186,7 +177,7 @@ func (c *Controller) AreResourcesExists(k8s *K8S, replId string) (bool, error) {
 		return false, nil
 	}
 
-	return false, nil
+	return true, nil
 }
 
 func (c *Controller) CreateK8sResources(k8s *K8S, filePath string, replId string) error {
