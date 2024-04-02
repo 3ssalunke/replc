@@ -20,6 +20,7 @@
             dirs.forEach((item) => {
                 let dir = {
                     id: item.path,
+                    class: getRandomSlug(),
                     name: item.name,
                     path: item.path,
                     parentId: item.path.split("/").length === 2 ? "0" : dirs.find(x => x.path === item.path.split("/").slice(0, -1).join("/"))?.path,
@@ -131,12 +132,12 @@
             }
         }
 
-        function createFileTree(socket, fileStructure, rootDir, rootEle){
+        function createFileTree(socket, rootDir, rootEleSelector){
             // Iterate rootDir files and create li element for each file
             rootDir.files.forEach((file, index) => {
                 // Create li element in file explorer ul
                 const feListItem = document.createElement('li');
-                document.getElementById(rootEle).appendChild(feListItem);
+                document.querySelector(rootEleSelector).appendChild(feListItem);
                 feListItem.classList.add('p-1', 'hover:cursor-pointer', 'hover:bg-gray-600');
 
                 // Add file icon
@@ -195,8 +196,8 @@
             // Iterate rootDir dirs and create li element for each dir
             rootDir.dirs.forEach(dir => {
                 const feListItem = document.createElement('li');
-                document.getElementById(rootEle).appendChild(feListItem);
-                feListItem.classList.add('p-1', 'hover:cursor-pointer', 'hover:bg-gray-600');
+                document.querySelector(rootEleSelector).appendChild(feListItem);
+                feListItem.classList.add(dir.class, 'p-1', 'hover:cursor-pointer', 'hover:bg-gray-600');
 
                 // Add icon
                 const icon = document.createElement('i');
@@ -221,10 +222,8 @@
 
                     // Fetch dir content
                     socket?.emit("fetchDir", dir.path, (data) => {
-                        const updatedFileStructure = [...fileStructure, ...data];
-                        const updatedRootDir = buildFileTree(updatedFileStructure);
-                        console.log("updatedFileStructure", updatedFileStructure);
-                        console.log("updatedRootDir", updatedRootDir);
+                        const rootDir = buildFileTree([...data]);
+                        createFileTree(socket, rootDir, `.${dir.class}`)
                     });
                 };
             });
@@ -280,12 +279,11 @@
         // Listen to loaded event from ws server
         newSocket.on("loaded", ({rootContent}) => {
             // Create root dir
-            let fileStructure = rootContent;
-            rootDir = buildFileTree(fileStructure);
+            const rootDir = buildFileTree(rootContent);
             console.log("rootDir", rootDir);
 
             // Create file explorer
-            createFileTree(newSocket, fileStructure, rootDir, "file-explorer");
+            createFileTree(newSocket, rootDir, "#file-explorer");
 
             // Create terminal
             createTerminal(newSocket);
