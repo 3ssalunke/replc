@@ -45,7 +45,6 @@
                 cache.set(file.id, file);
             });
 
-            console.log("cache", cache)
             cache.forEach((value, key) => {
                 if (value.parentId === "0") {
                     if (value.type === "DIRECTORY") rootDir.dirs.push(value);
@@ -70,6 +69,13 @@
                 dir.depth = curDepth + 1;
                 getDepth(dir, curDepth + 1);
             });
+        }
+
+        function sortDirContent(rootDir){
+            const compareFunction = (a, b) => b.name.localeCompare(a.name);
+            rootDir.files.sort(compareFunction);
+            rootDir.dirs.sort(compareFunction);
+            rootDir.dirs.forEach(dir => sortDirContent(dir));
         }
 
         function fileLangauge(filename){
@@ -132,101 +138,122 @@
             }
         }
 
-        function createFileTree(socket, rootDir, rootEleSelector){
-            // Iterate rootDir files and create li element for each file
-            rootDir.files.forEach((file, index) => {
-                // Create li element in file explorer ul
-                const feListItem = document.createElement('li');
-                document.querySelector(rootEleSelector).appendChild(feListItem);
-                feListItem.classList.add('p-1', 'hover:cursor-pointer', 'hover:bg-gray-600');
+        function getChildDirBasedOnPath(dir, path){
+            if(!dir.dirs.length) return null;
+            for(let _dir of dir.dirs){
+                if(_dir.path === path) return _dir;
+                if(_dir.dirs){
+                    const foundDir = getChildDirBasedOnPath(_dir, path);
+                    if(foundDir) return foundDir;
+                }
+            }
+            return null;
+        }
 
-                // Add file icon
-                const icon = document.createElement('i');
-                icon.classList.add('far', 'fa-file', 'mx-2');
-                feListItem.appendChild(icon);
+        function createFileTree(socket, rootDir, fileStructure, rootEleSelector){
+            // Iterate rootDir dirs and create li element for each dir
+            if(rootDir?.dirs.length){
+                rootDir.dirs.forEach(dir => {
+                    const feListItem = document.createElement('li');
+                    document.querySelector(rootEleSelector).appendChild(feListItem);
+                    feListItem.classList.add(dir.class, 'py-1', 'px-2', 'hover:cursor-pointer', 'hover:bg-gray-600');
 
-                // Add file name
-                const fileName = document.createTextNode(file.name);
-                feListItem.appendChild(fileName);
+                    // Add icon
+                    const icon = document.createElement('i');
+                    icon.classList.add('fas', 'fa-folder', 'mx-2');
+                    // Add expand/shrink icon for folders
+                    // TODO
 
-                // Attach onclick event to file explorer li element
-                feListItem.onclick = function() {
-                    removeExplorerAndTabSelectionStyles();
+                    feListItem.appendChild(icon);
 
-                    // Add background color to the clicked explorer li item
-                    this.classList.add('fe-selected', 'bg-blue-500');
+                    const folderName = document.createTextNode(dir.name);
+                    feListItem.appendChild(folderName);
 
-                    // Check if this file is opened before
-                    const prevOpenedFile = document.querySelector(`.${file.class}`);
-                    if(prevOpenedFile){
-                        // Add background color to opened file tab li item
-                        prevOpenedFile.classList.add('opened-tab', 'bg-blue-200');
-                    } else {
-                        // Create li element in opened file tabs ul
-                        const vfListItem = document.createElement('li');
-                        document.getElementById("visited-files").appendChild(vfListItem);
-                        vfListItem.classList.add('p-1', 'border-r-2', 'hover:cursor-pointer', 'opened-tab', 'bg-blue-200', file.class);
-
-                        // Attach onclick event to open file tab li item
-                        vfListItem.onclick = function(){
-                            // Fetch content for file and create editor instance
-                            fetchFileContentAndCreateEditor(rootDir, file, index);
-
-                            removeExplorerAndTabSelectionStyles();
-
-                            // Add selection styles to explorer and open tabs items
-                            feListItem.classList.add('fe-selected', 'bg-blue-500');
-                            this.classList.add('opened-tab', 'bg-blue-200');
+                    feListItem.onclick = function(e) {
+                        e.stopPropagation();
+                        // Remove background color from previously selected item
+                        const prevSelectedItem = document.querySelector('.fe-selected');
+                        if (prevSelectedItem) {
+                            prevSelectedItem.classList.remove('fe-selected', 'bg-blue-500');
                         }
 
-                        // Add file name
-                        const fileName = document.createTextNode(file.name);
-                        vfListItem.appendChild(fileName);
+                        // Add background color to the clicked item
+                        this.classList.add('fe-selected', 'bg-blue-500');
 
-                        // Add close icon
-                        const icon = document.createElement('i');
-                        icon.classList.add('fa', 'fa-times', 'mx-2');
-                        vfListItem.appendChild(icon);
-                    }
+                        // Fetch dir content
+                        socket?.emit("fetchDir", dir.path, (data) => {
+                            const _fileStructure = [...fileStructure, ...data]
+                            const fileTree = buildFileTree(_fileStructure)
+                            const _rootDir = getChildDirBasedOnPath(fileTree, dir.path);
+                            createFileTree(socket, _rootDir, _fileStructure, `.${dir.class}`)
+                        });
+                    };
+                });
+            }
+            
+            // Iterate rootDir files and create li element for each file
+            if(rootDir?.files.length){
+                rootDir.files.forEach((file, index) => {
+                    // Create li element in file explorer ul
+                    const feListItem = document.createElement('li');
+                    document.querySelector(rootEleSelector).appendChild(feListItem);
+                    feListItem.classList.add('py-1', 'px-2', 'hover:cursor-pointer', 'hover:bg-gray-600');
 
-                    // Fetch content for file and create editor instance
-                    fetchFileContentAndCreateEditor(rootDir, file, index);
-                };
-            });
-            // Iterate rootDir dirs and create li element for each dir
-            rootDir.dirs.forEach(dir => {
-                const feListItem = document.createElement('li');
-                document.querySelector(rootEleSelector).appendChild(feListItem);
-                feListItem.classList.add(dir.class, 'p-1', 'hover:cursor-pointer', 'hover:bg-gray-600');
+                    // Add file icon
+                    const icon = document.createElement('i');
+                    icon.classList.add('far', 'fa-file', 'mx-2');
+                    feListItem.appendChild(icon);
 
-                // Add icon
-                const icon = document.createElement('i');
-                icon.classList.add('fas', 'fa-folder', 'mx-2');
-                // Add expand/shrink icon for folders
-                // TODO
+                    // Add file name
+                    const fileName = document.createTextNode(file.name);
+                    feListItem.appendChild(fileName);
 
-                feListItem.appendChild(icon);
+                    // Attach onclick event to file explorer li element
+                    feListItem.onclick = function(e) {
+                        e.stopPropagation();
+                        removeExplorerAndTabSelectionStyles();
 
-                const folderName = document.createTextNode(dir.name);
-                feListItem.appendChild(folderName);
+                        // Add background color to the clicked explorer li item
+                        this.classList.add('fe-selected', 'bg-blue-500');
 
-                feListItem.onclick = function() {
-                    // Remove background color from previously selected item
-                    const prevSelectedItem = document.querySelector('.fe-selected');
-                    if (prevSelectedItem) {
-                        prevSelectedItem.classList.remove('fe-selected', 'bg-blue-500');
-                    }
+                        // Check if this file is opened before
+                        const prevOpenedFile = document.querySelector(`.${file.class}`);
+                        if(prevOpenedFile){
+                            // Add background color to opened file tab li item
+                            prevOpenedFile.classList.add('opened-tab', 'bg-blue-200');
+                        } else {
+                            // Create li element in opened file tabs ul
+                            const vfListItem = document.createElement('li');
+                            document.getElementById("visited-files").appendChild(vfListItem);
+                            vfListItem.classList.add('p-1', 'border-r-2', 'hover:cursor-pointer', 'opened-tab', 'bg-blue-200', file.class);
 
-                    // Add background color to the clicked item
-                    this.classList.add('fe-selected', 'bg-blue-500');
+                            // Attach onclick event to open file tab li item
+                            vfListItem.onclick = function(){
+                                // Fetch content for file and create editor instance
+                                fetchFileContentAndCreateEditor(rootDir, file, index);
 
-                    // Fetch dir content
-                    socket?.emit("fetchDir", dir.path, (data) => {
-                        const rootDir = buildFileTree([...data]);
-                        createFileTree(socket, rootDir, `.${dir.class}`)
-                    });
-                };
-            });
+                                removeExplorerAndTabSelectionStyles();
+
+                                // Add selection styles to explorer and open tabs items
+                                feListItem.classList.add('fe-selected', 'bg-blue-500');
+                                this.classList.add('opened-tab', 'bg-blue-200');
+                            }
+
+                            // Add file name
+                            const fileName = document.createTextNode(file.name);
+                            vfListItem.appendChild(fileName);
+
+                            // Add close icon
+                            const icon = document.createElement('i');
+                            icon.classList.add('fa', 'fa-times', 'mx-2');
+                            vfListItem.appendChild(icon);
+                        }
+
+                        // Fetch content for file and create editor instance
+                        fetchFileContentAndCreateEditor(rootDir, file, index);
+                    };
+                });
+            }
         }
 
         function ab2str(buf) {
@@ -280,10 +307,9 @@
         newSocket.on("loaded", ({rootContent}) => {
             // Create root dir
             const rootDir = buildFileTree(rootContent);
-            console.log("rootDir", rootDir);
 
             // Create file explorer
-            createFileTree(newSocket, rootDir, "#file-explorer");
+            createFileTree(newSocket, rootDir, rootContent, "#file-explorer");
 
             // Create terminal
             createTerminal(newSocket);
