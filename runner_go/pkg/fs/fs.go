@@ -32,3 +32,15 @@ func FetchDir(dir, baseDir string) ([]File, error) {
 
 	return fileList, nil
 }
+
+func FetchContent(filePath string) (string, error) {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+	return string(content), nil
+}
+
+func SaveFile(filePath string, content string) error {
+	return os.WriteFile(filePath, []byte(content), os.ModeAppend)
+}
