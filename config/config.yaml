@@ -18,9 +18,9 @@ database:
   database: "replc"
 
 s3:
-  accesskey: "AKIA2T7POMFAFPSJSNGU"
-  secretkey: "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"
-  region: "ap-south-1"
+  accesskey: ""
+  secretkey: ""
+  region: ""
 
 k8s:
   namespace: "default"
