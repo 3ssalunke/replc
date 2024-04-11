@@ -20,7 +20,7 @@ database:
 s3:
   accesskey: ""
   secretkey: ""
-  region: ""
+  region: "ap-south-1"
 
 k8s:
   namespace: "default"

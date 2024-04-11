@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/3ssalunke/replc/runner_go/pkg/fs"
+	"github.com/3ssalunke/replc/runner_go/pkg/s3"
 	"github.com/gorilla/websocket"
 )
 
@@ -62,7 +63,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	host := r.Host
 	replID := strings.Split(host, ":")[0]
-	log.Println(replID)
+	replID = "opencomputerto"
 
 	// Send workspace dir content to client on connection
 	workspaceDirPath, err := filepath.Abs(filepath.Join("..", "..", "replc"))
@@ -168,16 +169,21 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			} else {
 				err := fs.SaveFile(filePath, wsMessage.Content.Content)
 				if err != nil {
-					log.Printf("error getting file content: %v", err)
+					log.Printf("error saving file content to runner instance: %v", err)
 				} else {
-					wsMessage, err := json.Marshal(WSOutgoingMessage{
-						Event:   RESPONSE,
-						Content: "file content updated successfully",
-					})
+					err = s3.SaveToS3(fmt.Sprintf("replcs/%s", replID), wsMessage.Content.FilePath, wsMessage.Content.Content)
 					if err != nil {
-						log.Printf("error converting websocket message to json string: %v", err)
+						log.Printf("error saving file content to s3 bucket: %v", err)
 					} else {
-						conn.WriteMessage(websocket.TextMessage, wsMessage)
+						wsMessage, err := json.Marshal(WSOutgoingMessage{
+							Event:   RESPONSE,
+							Content: "file content updated successfully",
+						})
+						if err != nil {
+							log.Printf("error converting websocket message to json string: %v", err)
+						} else {
+							conn.WriteMessage(websocket.TextMessage, wsMessage)
+						}
 					}
 				}
 			}
