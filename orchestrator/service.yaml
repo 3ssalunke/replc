@@ -27,9 +27,9 @@ spec:
               echo "Resources copied from S3";
           env:
             - name: AWS_ACCESS_KEY_ID
-              value: "AKIA2T7POMFAFPSJSNGU"
+              value: ""
             - name: AWS_SECRET_ACCESS_KEY
-              value: "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"
+              value: ""
           volumeMounts:
             - name: replcvol
               mountPath: /workspace
@@ -43,9 +43,9 @@ spec:
             - name: S3_BUCKET
               value: "replc"
             - name: AWS_ACCESS_KEY_ID
-              value: "AKIA2T7POMFAFPSJSNGU"
+              value: ""
             - name: AWS_SECRET_ACCESS_KEY
-              value: "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"
+              value: ""
           volumeMounts:
             - name: replcvol
               mountPath: /workspace
