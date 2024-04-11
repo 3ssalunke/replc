@@ -1,16 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/3ssalunke/replc/runner_go/pkg/fs"
 	"github.com/3ssalunke/replc/runner_go/pkg/s3"
+	"github.com/3ssalunke/replc/runner_go/pkg/term"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -61,9 +63,11 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	conn.WriteMessage(websocket.TextMessage, []byte("connection successfull"))
 
-	host := r.Host
-	replID := strings.Split(host, ":")[0]
-	replID = "opencomputerto"
+	// host := r.Host
+	// replId := strings.Split(host, ":")[0]
+	replId := "opencomputerto"
+	socketId := uuid.New()
+	terminal := term.NewTerminalManager()
 
 	// Send workspace dir content to client on connection
 	workspaceDirPath, err := filepath.Abs(filepath.Join("..", "..", "replc"))
@@ -99,6 +103,10 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				log.Printf("error reading incoming message from connection %s: %v", conn.RemoteAddr().String(), err)
 			} else {
 				log.Printf("connection %s closed: %v", conn.RemoteAddr().String(), err)
+				err := terminal.CloseTerminal(socketId)
+				if err != nil {
+					log.Printf("error closiing terminal %v", err)
+				}
 			}
 			break
 		}
@@ -171,7 +179,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					log.Printf("error saving file content to runner instance: %v", err)
 				} else {
-					err = s3.SaveToS3(fmt.Sprintf("replcs/%s", replID), wsMessage.Content.FilePath, wsMessage.Content.Content)
+					err = s3.SaveToS3(fmt.Sprintf("replcs/%s", replId), wsMessage.Content.FilePath, wsMessage.Content.Content)
 					if err != nil {
 						log.Printf("error saving file content to s3 bucket: %v", err)
 					} else {
@@ -189,8 +197,37 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 			continue
 		case REQUESTTERMINAL:
+			cmd, err := terminal.CreateTerminal(socketId)
+			if err != nil {
+				log.Printf("error creating new terminal: %v", err)
+			} else {
+				var stdout bytes.Buffer
+				cmd.Stdout = &stdout
+				go func() {
+					for {
+						data := make([]byte, 8)
+						_, err := stdout.Read(data)
+						if err != nil {
+							log.Printf("error reading terminal output: %v", err)
+						}
+						wsMessage, err := json.Marshal(WSOutgoingMessage{
+							Event:   RESPONSE,
+							Content: string(data),
+						})
+						if err != nil {
+							log.Printf("error converting websocket message to json string: %v", err)
+						} else {
+							conn.WriteMessage(websocket.TextMessage, wsMessage)
+						}
+					}
+				}()
+			}
 			continue
 		case TERMINALDATA:
+			err := terminal.WriteToTerminal(socketId, []byte(wsMessage.Content.Content))
+			if err != nil {
+				log.Printf("error writing to terminal: %v", err)
+			}
 			continue
 		default:
 			log.Println("invalid message event")
