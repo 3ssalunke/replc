@@ -70,7 +70,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	terminal := term.NewTerminalManager()
 
 	// Send workspace dir content to client on connection
-	workspaceDirPath, err := filepath.Abs(filepath.Join("..", "..", "replc"))
+	workspaceDirPath, err := filepath.Abs(filepath.Join("..", "workspace"))
 	if err != nil {
 		log.Printf("error creating path to workspace directory %v", err)
 	} else {
@@ -124,7 +124,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		switch wsMessage.Event {
 		case FETCHDIR:
-			dirPath, err := filepath.Abs(filepath.Join("..", "..", "replc", wsMessage.Content.Dir))
+			dirPath, err := filepath.Abs(filepath.Join("..", "workspace", wsMessage.Content.Dir))
 			if err != nil {
 				log.Printf("error creating path to workspace directory %v", err)
 			} else {
@@ -150,7 +150,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 			continue
 		case FETCHCONTENT:
-			filePath, err := filepath.Abs(filepath.Join("..", "..", "replc", wsMessage.Content.FilePath))
+			filePath, err := filepath.Abs(filepath.Join("..", "workspace", wsMessage.Content.FilePath))
 			if err != nil {
 				log.Printf("error creating path to file %v", err)
 			} else {
@@ -171,7 +171,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 			continue
 		case UPDATECONTENT:
-			filePath, err := filepath.Abs(filepath.Join("..", "..", "replc", wsMessage.Content.FilePath))
+			filePath, err := filepath.Abs(filepath.Join("..", "workspace", wsMessage.Content.FilePath))
 			if err != nil {
 				log.Printf("error creating path to file %v", err)
 			} else {
