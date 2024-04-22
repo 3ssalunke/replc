@@ -3,6 +3,8 @@ package term
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"log"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -11,9 +13,15 @@ import (
 	"github.com/google/uuid"
 )
 
+type CmdContainer struct {
+	Cmd    *exec.Cmd
+	StdIn  io.WriteCloser
+	StdOut io.ReadCloser
+}
+
 type TerminalManager struct {
-	sessions map[uuid.UUID]*exec.Cmd
-	mu       sync.Mutex
+	sessions map[uuid.UUID]CmdContainer
+	mu       sync.RWMutex
 }
 
 const (
@@ -24,85 +32,84 @@ const (
 
 func NewTerminalManager() *TerminalManager {
 	return &TerminalManager{
-		sessions: make(map[uuid.UUID]*exec.Cmd),
+		sessions: make(map[uuid.UUID]CmdContainer),
 	}
 }
 
-func (tm *TerminalManager) CreateTerminal(id uuid.UUID) error {
+func (tm *TerminalManager) CreateTerminal(id uuid.UUID) (string, error) {
 	cmd := exec.Command(SHELL)
 
 	dirPath, err := filepath.Abs(filepath.Join("..", WORKSPACE_DIR))
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	cmd.Dir = dirPath
 	cmd.Env = append(cmd.Env, fmt.Sprintf("COLUMNS=%d", TERMINAL_COLS))
 
 	tm.mu.Lock()
-	tm.sessions[id] = cmd
-	tm.mu.Unlock()
+	defer tm.mu.Unlock()
 
-	return nil
-}
-
-func (tm *TerminalManager) WriteToTerminal(id uuid.UUID, command string) (string, error) {
-	cmd, ok := tm.sessions[id]
-	if !ok {
-		return "", fmt.Errorf("terminal session with ID %s not found", id)
-	}
-
-	// Obtain a pipe to the standard input of the command
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return "", err
-	}
-	defer stdout.Close()
-
-	// Obtain a pipe to the standard input of the command
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return "", err
 	}
-	defer stdin.Close()
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", err
+	}
 
 	// Start the command
 	if err := cmd.Start(); err != nil {
 		return "", err
 	}
 
+	tm.sessions[id] = CmdContainer{
+		Cmd:    cmd,
+		StdIn:  stdin,
+		StdOut: stdout,
+	}
+
+	return cmd.Dir + ": ", nil
+}
+
+func (tm *TerminalManager) WriteToTerminal(id uuid.UUID, command string) (string, error) {
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+
+	cmd, ok := tm.sessions[id]
+	if !ok {
+		return "", fmt.Errorf("terminal session with ID %s not found", id)
+	}
+
 	// Write a command to the standard input
 	command = command + "\npwd\n"
-	if _, err := stdin.Write([]byte(command)); err != nil {
+	if _, err := cmd.StdIn.Write([]byte(command)); err != nil {
+		log.Println("in", err)
 		return "", err
 	}
 
 	// Close the standard input to signal the end of input
-	if err := stdin.Close(); err != nil {
+	if err := cmd.StdIn.Close(); err != nil {
 		return "", err
 	}
 
 	var buf bytes.Buffer
-	_, err = buf.ReadFrom(stdout)
+	_, err := buf.ReadFrom(cmd.StdOut)
 	if err != nil {
 		return "", err
 	}
 	stdoutArr := strings.Split(buf.String(), "\n")
-	cmd.Dir = stdoutArr[len(stdoutArr)-2]
+	cmd.Cmd.Dir = stdoutArr[len(stdoutArr)-2]
 	stdoutArr = stdoutArr[:len(stdoutArr)-2]
-
-	modifiedStdoutArr := make([]string, len(stdoutArr))
-	for i, element := range modifiedStdoutArr {
-		modifiedStdoutArr[i] = cmd.Dir + ": " + element
-	}
+	stdoutString := cmd.Cmd.Dir + ": " + strings.Join(stdoutArr, "\n")
 
 	// Wait for the command to finish executing
-	if err := cmd.Wait(); err != nil {
+	if err := cmd.Cmd.Wait(); err != nil {
 		return "", err
 	}
 	fmt.Println("Command executed successfully")
-
-	stdoutString := strings.Join(modifiedStdoutArr, "\n")
 	return stdoutString, nil
 }
 
@@ -114,7 +121,7 @@ func (tm *TerminalManager) CloseTerminal(id uuid.UUID) error {
 	if !ok {
 		return fmt.Errorf("terminal session with ID %s not found", id)
 	}
-	err := cmd.Process.Kill()
+	err := cmd.Cmd.Process.Kill()
 	if err != nil {
 		return err
 	}

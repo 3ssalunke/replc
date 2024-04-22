@@ -195,17 +195,18 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 			continue
 		case REQUESTTERMINAL:
-			err := terminal.CreateTerminal(socketId)
+			output, err := terminal.CreateTerminal(socketId)
 			if err != nil {
 				log.Printf("error creating new terminal: %v", err)
 			}
+			log.Println("REQUESTTERMINAL", output)
 			continue
 		case TERMINALDATA:
 			output, err := terminal.WriteToTerminal(socketId, wsMessage.Content.Content)
 			if err != nil {
 				log.Printf("error writing to terminal: %v", err)
 			}
-			log.Println(output)
+			log.Println("TERMINALDATA", output)
 			continue
 		default:
 			log.Println("invalid message event")
