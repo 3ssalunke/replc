@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -21,15 +20,15 @@ type WSOutgoingMessage struct {
 	Content string `json:"content"`
 }
 
-type WSIngoingMessageContent struct {
+type WSIncomingMessageContent struct {
 	Dir      string `json:"dir"`
 	FilePath string `json:"path"`
 	Content  string `json:"content"`
 }
 
-type WSIngoingMessage struct {
-	Event   string                  `json:"event"`
-	Content WSIngoingMessageContent `json:"content"`
+type WSIncomingMessage struct {
+	Event   string                   `json:"event"`
+	Content WSIncomingMessageContent `json:"content"`
 }
 
 const (
@@ -95,7 +94,6 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Infinite loop to handle incoming messages
 	for {
 		mt, message, err := conn.ReadMessage()
 		if err != nil {
@@ -115,7 +113,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		var wsMessage WSIngoingMessage
+		var wsMessage WSIncomingMessage
 		err = json.Unmarshal(message, &wsMessage)
 		if err != nil {
 			log.Printf("error unmarshaling ws message to struct: %v", err)
@@ -197,37 +195,17 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 			continue
 		case REQUESTTERMINAL:
-			cmd, err := terminal.CreateTerminal(socketId)
+			err := terminal.CreateTerminal(socketId)
 			if err != nil {
 				log.Printf("error creating new terminal: %v", err)
-			} else {
-				var stdout bytes.Buffer
-				cmd.Stdout = &stdout
-				go func() {
-					for {
-						data := make([]byte, 8)
-						_, err := stdout.Read(data)
-						if err != nil {
-							log.Printf("error reading terminal output: %v", err)
-						}
-						wsMessage, err := json.Marshal(WSOutgoingMessage{
-							Event:   RESPONSE,
-							Content: string(data),
-						})
-						if err != nil {
-							log.Printf("error converting websocket message to json string: %v", err)
-						} else {
-							conn.WriteMessage(websocket.TextMessage, wsMessage)
-						}
-					}
-				}()
 			}
 			continue
 		case TERMINALDATA:
-			err := terminal.WriteToTerminal(socketId, []byte(wsMessage.Content.Content))
+			output, err := terminal.WriteToTerminal(socketId, wsMessage.Content.Content)
 			if err != nil {
 				log.Printf("error writing to terminal: %v", err)
 			}
+			log.Println(output)
 			continue
 		default:
 			log.Println("invalid message event")
