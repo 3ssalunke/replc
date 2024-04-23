@@ -198,15 +198,51 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			output, err := terminal.CreateTerminal(socketId)
 			if err != nil {
 				log.Printf("error creating new terminal: %v", err)
+				wsMessage, err := json.Marshal(WSOutgoingMessage{
+					Event:   RESPONSE,
+					Content: fmt.Sprintf("error creating new terminal: %v", err),
+				})
+				if err != nil {
+					log.Printf("error converting websocket message to json string: %v", err)
+				} else {
+					conn.WriteMessage(websocket.TextMessage, wsMessage)
+				}
+			} else {
+				wsMessage, err := json.Marshal(WSOutgoingMessage{
+					Event:   RESPONSE,
+					Content: output,
+				})
+				if err != nil {
+					log.Printf("error converting websocket message to json string: %v", err)
+				} else {
+					conn.WriteMessage(websocket.TextMessage, wsMessage)
+				}
 			}
-			log.Println("REQUESTTERMINAL", output)
 			continue
 		case TERMINALDATA:
 			output, err := terminal.WriteToTerminal(socketId, wsMessage.Content.Content)
 			if err != nil {
 				log.Printf("error writing to terminal: %v", err)
+				wsMessage, err := json.Marshal(WSOutgoingMessage{
+					Event:   RESPONSE,
+					Content: fmt.Sprintf("error writing to terminal: %v", err),
+				})
+				if err != nil {
+					log.Printf("error converting websocket message to json string: %v", err)
+				} else {
+					conn.WriteMessage(websocket.TextMessage, wsMessage)
+				}
+			} else {
+				wsMessage, err := json.Marshal(WSOutgoingMessage{
+					Event:   RESPONSE,
+					Content: output,
+				})
+				if err != nil {
+					log.Printf("error converting websocket message to json string: %v", err)
+				} else {
+					conn.WriteMessage(websocket.TextMessage, wsMessage)
+				}
 			}
-			log.Println("TERMINALDATA", output)
 			continue
 		default:
 			log.Println("invalid message event")

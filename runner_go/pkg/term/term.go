@@ -3,7 +3,6 @@ package term
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"os/exec"
 	"path/filepath"
@@ -13,14 +12,8 @@ import (
 	"github.com/google/uuid"
 )
 
-type CmdContainer struct {
-	Cmd    *exec.Cmd
-	StdIn  io.WriteCloser
-	StdOut io.ReadCloser
-}
-
 type TerminalManager struct {
-	sessions map[uuid.UUID]CmdContainer
+	sessions map[uuid.UUID]string
 	mu       sync.RWMutex
 }
 
@@ -32,23 +25,35 @@ const (
 
 func NewTerminalManager() *TerminalManager {
 	return &TerminalManager{
-		sessions: make(map[uuid.UUID]CmdContainer),
+		sessions: make(map[uuid.UUID]string),
 	}
 }
 
 func (tm *TerminalManager) CreateTerminal(id uuid.UUID) (string, error) {
-	cmd := exec.Command(SHELL)
+	// cmd := exec.Command(SHELL)
+	tm.mu.Lock()
+	defer tm.mu.Unlock()
 
 	dirPath, err := filepath.Abs(filepath.Join("..", WORKSPACE_DIR))
 	if err != nil {
 		return "", err
 	}
 
-	cmd.Dir = dirPath
-	cmd.Env = append(cmd.Env, fmt.Sprintf("COLUMNS=%d", TERMINAL_COLS))
+	tm.sessions[id] = dirPath
+	return dirPath + ": ", nil
+}
 
+func (tm *TerminalManager) WriteToTerminal(id uuid.UUID, command string) (string, error) {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
+
+	dirPath, ok := tm.sessions[id]
+	if !ok {
+		return "", fmt.Errorf("terminal session with ID %s not found", id)
+	}
+	cmd := exec.Command(SHELL)
+	cmd.Dir = dirPath
+	cmd.Env = append(cmd.Env, fmt.Sprintf("COLUMNS=%d", TERMINAL_COLS))
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -65,50 +70,54 @@ func (tm *TerminalManager) CreateTerminal(id uuid.UUID) (string, error) {
 		return "", err
 	}
 
-	tm.sessions[id] = CmdContainer{
-		Cmd:    cmd,
-		StdIn:  stdin,
-		StdOut: stdout,
-	}
-
-	return cmd.Dir + ": ", nil
-}
-
-func (tm *TerminalManager) WriteToTerminal(id uuid.UUID, command string) (string, error) {
-	tm.mu.RLock()
-	defer tm.mu.RUnlock()
-
-	cmd, ok := tm.sessions[id]
-	if !ok {
-		return "", fmt.Errorf("terminal session with ID %s not found", id)
-	}
-
 	// Write a command to the standard input
 	command = command + "\npwd\n"
-	if _, err := cmd.StdIn.Write([]byte(command)); err != nil {
-		log.Println("in", err)
+	if _, err := stdin.Write([]byte(command)); err != nil {
 		return "", err
 	}
 
 	// Close the standard input to signal the end of input
-	if err := cmd.StdIn.Close(); err != nil {
+	if err := stdin.Close(); err != nil {
 		return "", err
 	}
 
 	var buf bytes.Buffer
-	_, err := buf.ReadFrom(cmd.StdOut)
-	if err != nil {
+	if _, err = buf.ReadFrom(stdout); err != nil {
 		return "", err
 	}
-	stdoutArr := strings.Split(buf.String(), "\n")
-	cmd.Cmd.Dir = stdoutArr[len(stdoutArr)-2]
-	stdoutArr = stdoutArr[:len(stdoutArr)-2]
-	stdoutString := cmd.Cmd.Dir + ": " + strings.Join(stdoutArr, "\n")
 
-	// Wait for the command to finish executing
-	if err := cmd.Cmd.Wait(); err != nil {
-		return "", err
-	}
+	stdoutArr := strings.Split(buf.String(), "\n")
+	updatedDirPath := stdoutArr[len(stdoutArr)-2]
+	stdoutArr = stdoutArr[:len(stdoutArr)-2]
+	stdoutString := updatedDirPath + ": " + strings.Join(stdoutArr, "\n")
+
+	tm.sessions[id] = updatedDirPath
+
+	defer func() {
+		go func() {
+			err := cmd.Wait()
+			if err != nil {
+				if exitErr, ok := err.(*exec.ExitError); ok {
+					// Process exited with a non-zero status
+					log.Printf("process exited with non-zero status: %v", exitErr)
+				} else {
+					// Process terminated unexpectedly
+					log.Printf("process terminated unexpectedly: %v", err)
+				}
+			}
+
+			// Check if the process is still running before killing it
+			if cmd.ProcessState == nil || !cmd.ProcessState.Exited() {
+				// Kill the process
+				if err := cmd.Process.Kill(); err != nil {
+					log.Printf("error killing process: %v", err)
+				}
+			} else {
+				log.Println("process has already finished")
+			}
+		}()
+	}()
+
 	fmt.Println("Command executed successfully")
 	return stdoutString, nil
 }
@@ -117,13 +126,9 @@ func (tm *TerminalManager) CloseTerminal(id uuid.UUID) error {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
-	cmd, ok := tm.sessions[id]
+	_, ok := tm.sessions[id]
 	if !ok {
 		return fmt.Errorf("terminal session with ID %s not found", id)
-	}
-	err := cmd.Cmd.Process.Kill()
-	if err != nil {
-		return err
 	}
 	delete(tm.sessions, id)
 	return nil
