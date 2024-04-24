@@ -65,6 +65,11 @@ func (tm *TerminalManager) WriteToTerminal(id uuid.UUID, command string) (string
 		return "", err
 	}
 
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return "", err
+	}
+
 	// Start the command
 	if err := cmd.Start(); err != nil {
 		return "", err
@@ -81,15 +86,26 @@ func (tm *TerminalManager) WriteToTerminal(id uuid.UUID, command string) (string
 		return "", err
 	}
 
-	var buf bytes.Buffer
-	if _, err = buf.ReadFrom(stdout); err != nil {
+	var stdoutBuf bytes.Buffer
+	if _, err = stdoutBuf.ReadFrom(stdout); err != nil {
+		return "", err
+	}
+	var stderrBuf bytes.Buffer
+	n, err := stderrBuf.ReadFrom(stderr)
+	if err != nil {
 		return "", err
 	}
 
-	stdoutArr := strings.Split(buf.String(), "\n")
+	stdoutArr := strings.Split(stdoutBuf.String(), "\n")
 	updatedDirPath := stdoutArr[len(stdoutArr)-2]
 	stdoutArr = stdoutArr[:len(stdoutArr)-2]
-	stdoutString := updatedDirPath + ": " + strings.Join(stdoutArr, "\n")
+
+	var stdoutString string
+	if n > 0 {
+		stdoutString = updatedDirPath + ": " + stderrBuf.String()
+	} else {
+		stdoutString = updatedDirPath + ": " + strings.Join(stdoutArr, "\n")
+	}
 
 	tm.sessions[id] = updatedDirPath
 
