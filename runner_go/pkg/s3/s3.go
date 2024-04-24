@@ -14,17 +14,9 @@ import (
 
 func SaveToS3(key string, filePath string, content string) error {
 	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
-	if accessKey == "" {
-		accessKey = "AKIA2T7POMFAFPSJSNGU"
-	}
 	accessSecret := os.Getenv("AWS_SECRET_ACCESS_KEY")
-	if accessSecret == "" {
-		accessSecret = "WUN62m//ovhY3VBVIEvN4jo43zPzTHOR2HTMqaPT"
-	}
-	region := os.Getenv("REGION")
-	if region == "" {
-		region = "ap-south-1"
-	}
+	region := os.Getenv("AWS_REGION")
+
 	awsConfig, err := config.LoadDefaultConfig(context.TODO(), config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, accessSecret, "")), config.WithRegion(region))
 	if err != nil {
 		log.Printf("unable to load AWS SDK config, %v", err)
