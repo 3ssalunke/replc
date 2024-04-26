@@ -73,7 +73,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("error creating path to workspace directory %v", err)
 	} else {
-		rootContent, err := fs.FetchDir(workspaceDirPath, "")
+		rootContent, err := fs.FetchDir(workspaceDirPath, "/")
 		if err != nil {
 			log.Printf("error getting workspace directory content: %v", err)
 		} else {
@@ -135,7 +135,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 						log.Printf("error converting workspace directory content to json string: %v", err)
 					} else {
 						wsMessage, err := json.Marshal(WSOutgoingMessage{
-							Event:   RESPONSE,
+							Event:   FETCHDIR,
 							Content: string(dirContentString),
 						})
 						if err != nil {
@@ -157,7 +157,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 					log.Printf("error getting file content: %v", err)
 				} else {
 					wsMessage, err := json.Marshal(WSOutgoingMessage{
-						Event:   RESPONSE,
+						Event:   FETCHCONTENT,
 						Content: fileContent,
 					})
 					if err != nil {
@@ -182,7 +182,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 						log.Printf("error saving file content to s3 bucket: %v", err)
 					} else {
 						wsMessage, err := json.Marshal(WSOutgoingMessage{
-							Event:   RESPONSE,
+							Event:   UPDATECONTENT,
 							Content: "file content updated successfully",
 						})
 						if err != nil {
@@ -209,7 +209,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				}
 			} else {
 				wsMessage, err := json.Marshal(WSOutgoingMessage{
-					Event:   RESPONSE,
+					Event:   "terminal",
 					Content: output,
 				})
 				if err != nil {
@@ -234,7 +234,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				}
 			} else {
 				wsMessage, err := json.Marshal(WSOutgoingMessage{
-					Event:   RESPONSE,
+					Event:   "terminal",
 					Content: output,
 				})
 				if err != nil {
