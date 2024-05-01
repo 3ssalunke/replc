@@ -181,7 +181,7 @@
                         this.classList.add('fe-selected', 'bg-blue-500');
 
                         // Fetch dir content
-                        socket?.emit("fetchDir", dir.path, (data) => {
+                        socket?.emit("fetchDir", { dir: dir.path }, (data) => {
                             const _fileStructure = [...fileStructure, ...data]
                             const fileTree = buildFileTree(_fileStructure)
                             const _rootDir = getChildDirBasedOnPath(fileTree, dir.path);
@@ -261,11 +261,9 @@
         }
 
         function terminalHandler(term) {
-            return ({data}) => {
-                if (data instanceof ArrayBuffer) {
-                    term.write(ab2str(data));
-                }
-            }
+            return (data) => {
+                term.write("\n" + data);
+            };
         }
 
         function createTerminal(socket){
@@ -285,14 +283,19 @@
             fitAddon.fit();
 
             // Request terminal
-            socket.emit("requestTerminal");
-            socket.on("terminal", terminalHandler(term));
+            socket.emit("terminal", null, terminalHandler(term));
 
             // Handle user input
-           term.onData((data) => {
-                socket.emit('terminalData', {
-                    data
-                });
+            let command = "";
+            term.onData((data) => {
+                if(data.charCodeAt(0) === 13){
+                    socket.emit('terminalData', { content: command });
+                    command = "";
+                } else if(data.charCodeAt(0) === 127){
+                    command = command.slice(0, -1)
+                } else {
+                    command += data;
+                }
             });
         }
         // ------------- End util functions --------------
@@ -313,21 +316,17 @@
             const payload = {event};
             switch(event){
                 case "fetchDir":
-                    payload.content = {
-                        dir: input
-                    };
+                    payload.content = input;
                     break;
                 case "fetchContent":
                     payload.content = input;
                     break;
                 case "updateContent":
                     payload.content = input;
-                case "requestTerminal":
+                case "terminal":
                     break;
                 case "terminalData":
-                    payload.content = {
-                        content: input
-                    };
+                    payload.content = input;
                     break;
                 default:
                     break;
@@ -337,14 +336,12 @@
                 socket.eventCallbacks[event] = callback;
             }
 
-            console.log(payload);
             socket.send(JSON.stringify(payload));
         }
 
         socket.onmessage = function(event) {
             try{
                 const wsData = JSON.parse(event.data);
-                console.log(wsData);
                 if(!wsData.event){
                     throw new Error("invalid data from websocket");
                 }
@@ -354,11 +351,10 @@
                         // Create root dir
                         const rootDir = buildFileTree(JSON.parse(wsData.content));
                         console.log("rootDir", rootDir);
-                        socket.emit()
                         // Create file explorer
-                        createFileTree(socket, rootDir, JSON.parse(wsData.content), "#file-explorer");
+                        createFileTree(this, rootDir, JSON.parse(wsData.content), "#file-explorer");
                         // Create terminal
-                        // createTerminal(socket);
+                        createTerminal(this);
                         // Toggle loader and ide views
                         document.getElementById('ide-loader').style.display = 'none';
                         document.getElementById('ide-screen').style.display = 'block';
@@ -376,6 +372,9 @@
                     case "updateContent":
                         break;
                     case "terminal":
+                         if(!!this.eventCallbacks[wsDataEvent]){
+                            this.eventCallbacks[wsDataEvent](wsData.content);
+                        }
                         break;
                     default:
                         throw new Error("invalid event in data from websocket");

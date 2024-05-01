@@ -32,14 +32,14 @@ type WSIncomingMessage struct {
 }
 
 const (
-	DISCONNECT      = "disconnect"
-	FETCHDIR        = "fetchDir"
-	FETCHCONTENT    = "fetchContent"
-	UPDATECONTENT   = "updateContent"
-	REQUESTTERMINAL = "requestTerminal"
-	TERMINALDATA    = "terminalData"
-	LOADED          = "loaded"
-	RESPONSE        = "response"
+	DISCONNECT    = "disconnect"
+	FETCHDIR      = "fetchDir"
+	FETCHCONTENT  = "fetchContent"
+	UPDATECONTENT = "updateContent"
+	TERMINALDATA  = "terminalData"
+	LOADED        = "loaded"
+	RESPONSE      = "response"
+	TERMINAL      = "terminal"
 )
 
 var upgrader = websocket.Upgrader{
@@ -194,7 +194,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			continue
-		case REQUESTTERMINAL:
+		case TERMINAL:
 			output, err := terminal.CreateTerminal(socketId)
 			if err != nil {
 				log.Printf("error creating new terminal: %v", err)
@@ -209,7 +209,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				}
 			} else {
 				wsMessage, err := json.Marshal(WSOutgoingMessage{
-					Event:   "terminal",
+					Event:   TERMINAL,
 					Content: output,
 				})
 				if err != nil {
@@ -234,7 +234,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				}
 			} else {
 				wsMessage, err := json.Marshal(WSOutgoingMessage{
-					Event:   "terminal",
+					Event:   TERMINAL,
 					Content: output,
 				})
 				if err != nil {
